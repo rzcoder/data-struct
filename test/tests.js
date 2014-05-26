@@ -150,6 +150,70 @@ suite("DataStruct", function(){
 
     };
 
+    var dataBundleExtend = {
+        nested: {
+            object: {
+                nested: {
+                    nested2: {
+                        nested3: {
+                            nested4: {
+                                nested5: 42
+                            }
+                        }
+                    }
+                }
+            },
+
+            scheme: {
+                nested: {
+                    type: DataTypes.struct,
+                    scheme: {
+                        nested2: {
+                            type: DataTypes.struct,
+                            scheme: {
+                                nested3: {
+                                    type: DataTypes.struct,
+                                    scheme: {
+                                        nested4: {
+                                            type: DataTypes.struct,
+                                            scheme: {
+                                                nested5: {
+                                                    type: DataTypes.struct,
+                                                    scheme: DataTypes.uint8
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+
+        'list of list': {
+            object: {
+                list: [
+                    [90,10,101],
+                    [20,30,400],
+                    [100,110,1]
+                ]
+            },
+
+            scheme: {
+               list: {
+                    type: DataTypes.list,
+                    scheme: {
+                        type: DataTypes.list,
+                        scheme: DataTypes.int16
+                    }
+                }
+            }
+        }
+
+    };
+
     suite("Buffer to Object convert", function(){
         for(var suite in dataBundle) {
             var data = dataBundle[suite];
@@ -169,6 +233,19 @@ suite("DataStruct", function(){
                 test("should return buffer for '" + suite + "' suite", function () {
                     var res = DataWriter(data.object, data.scheme);
                     assert.deepEqual(res, data.buffer);
+                });
+            })(suite, data);
+        }
+    });
+
+    suite("Object to Buffer to Object convert", function() {
+        for(var suite in dataBundleExtend) {
+            var data = dataBundleExtend[suite];
+            (function(suite, data) {
+                test("should convert to buffer and read same for '" + suite + "' suite", function () {
+                    var buf = DataWriter(data.object, data.scheme);
+                    var obj = DataReader(buf, data.scheme);
+                    assert.deepEqual(obj, data.object);
                 });
             })(suite, data);
         }

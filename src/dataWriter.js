@@ -102,8 +102,8 @@ typesTable[DataTypes.struct] = function (value, scheme) {
 };
 
 typesTable[DataTypes.list] = function (value, scheme) {
-    if (Object.prototype.toString.call(value) !== '[object Array]') {
-        throw Error('Value is not array.')
+    if (!Array.isArray(value)) {
+        throw Error('Value is not array.');
     }
 
     var res = [];
@@ -111,9 +111,11 @@ typesTable[DataTypes.list] = function (value, scheme) {
     var length = value.length;
     lenBuf.writeUInt16BE(length,0);
     res.push(lenBuf);
+
     for(var i = 0; i < length; i++) {
         res.push(structureWriter(value[i], scheme));
     }
+
     return Buffer.concat(res);
 };
 
@@ -122,12 +124,16 @@ var structureWriter = function (object, scheme) {
     if(typeof scheme  === 'number') {
         res.push(typesTable[scheme](object));
     } else {
-        for (var el in scheme) {
-            var s = scheme[el];
-            if (typeof s === 'number') {
-                res.push(typesTable[s](object[el]));
-            } else {
-                res.push(typesTable[s.type](object[el], s.scheme));
+        if(Array.isArray(scheme)) {
+            console.log('bingo')
+        } else {
+            for (var el in scheme) {
+                var s = scheme[el];
+                if (typeof s === 'number') {
+                    res.push(typesTable[s](object[el]));
+                } else {
+                    res.push(typesTable[s.type](object[el], s.scheme));
+                }
             }
         }
     }
