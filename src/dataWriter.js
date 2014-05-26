@@ -57,52 +57,67 @@ typesTable[DataTypes.double] = function (value) {
 };
 
 typesTable[DataTypes.string] = function (value) {
-    /*var length;
-    length = buffer.writeUInt16BE(pointer.offset);
-    pointer.offset += 2;
-    buffer.toString('utf8', pointer.offset, pointer.offset + length);
-    pointer.offset += length;*/
+    var buffer = new Buffer(value);
+    var length = buffer.length;
+    if (length > 0xFFFF) {
+        throw Error('String too long');
+    }
+
+    var res = new Buffer(2 + length);
+    res.writeUInt16BE(length, 0);
+    buffer.copy(res, 2);
+
+    return res;
 };
 
 typesTable[DataTypes.shortBuffer] = function (value) {
-   /*var length;
-    length = buffer.writeUInt16BE(pointer.offset);
-    pointer.offset += 2;
-    buffer.slice(pointer.offset, pointer.offset + length);
-    pointer.offset += length;*/
+    var length = value.length;
+    if (length > 0xFFFF) {
+        throw Error('Buffer too long');
+    }
+
+    var res = new Buffer(2 + length);
+    res.writeUInt16BE(length, 0);
+    value.copy(res, 2);
+
+    return res;
 };
 
 typesTable[DataTypes.buffer] = function (value) {
-   /* var length;
-    length = buffer.writeUInt32BE(pointer.offset);
-    pointer.offset += 4;
-    buffer.slice(pointer.offset, pointer.offset + length);
-    pointer.offset += length;*/
-};
+    var length = value.length;
 
-typesTable[DataTypes.struct] = function (pointer, buffer, scheme) {
-    //return structureWriter(pointer, buffer, scheme);
-};
-
-typesTable[DataTypes.list] = function (pointer, buffer, scheme) {
-   /* var length = buffer.writeUInt16BE(pointer.offset);
-    pointer.offset += 2;
-
-    [];
-    while (length--) {
-        res.push(structureWriter(pointer, buffer, scheme));
-    }*/
-};
-
-var structureWriter = function (pointer, object, scheme) {
-    if (arguments.length === 2) {
-        scheme = object;
-        object = pointer;
-        pointer = {
-            offset: 0
-        };
+    if (length > 0xFFFFFFFF) {
+        throw Error('Buffer too long');
     }
 
+    var res = new Buffer(4 + length);
+    res.writeUInt32BE(length, 0);
+    value.copy(res, 4);
+
+    return res;
+};
+
+typesTable[DataTypes.struct] = function (value, scheme) {
+    return structureWriter(value, scheme);
+};
+
+typesTable[DataTypes.list] = function (value, scheme) {
+    if (Object.prototype.toString.call(value) !== '[object Array]') {
+        throw Error('Value is not array.')
+    }
+
+    var res = [];
+    var lenBuf = new Buffer(2);
+    var length = value.length;
+    lenBuf.writeUInt16BE(length,0);
+    res.push(lenBuf);
+    for(var i = 0; i < length; i++) {
+        res.push(structureWriter(value[i], scheme));
+    }
+    return Buffer.concat(res);
+};
+
+var structureWriter = function (object, scheme) {
     var res = [];
     if(typeof scheme  === 'number') {
         res.push(typesTable[scheme](object));
