@@ -99,6 +99,8 @@ typesTable[DataTypes.list] = function (pointer, buffer, scheme) {
 };
 
 var structureReader = function (pointer, buffer, scheme) {
+    var res;
+
     if (arguments.length === 2) {
         scheme = buffer;
         buffer = pointer;
@@ -108,9 +110,9 @@ var structureReader = function (pointer, buffer, scheme) {
     }
 
     if(typeof scheme  === 'number') {
-        var res = typesTable[scheme](pointer, buffer);
+        res = typesTable[scheme](pointer, buffer);
     } else {
-        var res = {};
+        res = {};
         for (var el in scheme) {
             var s = scheme[el];
             if (typeof s === 'number') {

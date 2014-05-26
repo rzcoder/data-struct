@@ -7,7 +7,7 @@ DataTypes = require("../src/index").DataTypes;
 DataReader = require("../src/index").DataReader;
 DataWriter = require("../src/index").DataWriter;
 
-describe("DataStruct", function(){
+suite("DataStruct", function(){
 
     var dataBundle = {
         'basic types': {
@@ -16,7 +16,7 @@ describe("DataStruct", function(){
             buffer: new Buffer([0x00, 0x2a])
         },
 
-        'flat structure': {
+        'flat structure (basic types)': {
             object: {
                 boolean: true,
                 int8: -126,
@@ -26,10 +26,7 @@ describe("DataStruct", function(){
                 int32: -100000,
                 uint32: 100000,
                 float: 1230000,
-                double: -123.456,
-                string: 'Some text + юникод',
-                shortBuffer: new Buffer([1,2,3]),
-                buffer: new Buffer([0xaa,0xbb,0xcc])
+                double: -123.456
             },
 
             scheme: {
@@ -41,10 +38,7 @@ describe("DataStruct", function(){
                 int32: DataTypes.int32,
                 uint32: DataTypes.uint32,
                 float: DataTypes.float,
-                double: DataTypes.double,
-                string: DataTypes.string,
-                shortBuffer: DataTypes.shortBuffer,
-                buffer: DataTypes.buffer
+                double: DataTypes.double
             },
 
             buffer: new Buffer([
@@ -57,6 +51,23 @@ describe("DataStruct", function(){
                 0x00, 0x01, 0x86, 0xa0, // uint32
                 0x49, 0x96, 0x25, 0x80, // float
                 0xc0, 0x5e, 0xdd, 0x2f, 0x1a, 0x9f, 0xbe, 0x77, // double
+            ])
+        },
+
+        'flat structure (composite types)': {
+            object: {
+                string: 'Some text + юникод',
+                shortBuffer: new Buffer([1,2,3]),
+                buffer: new Buffer([0xaa,0xbb,0xcc])
+            },
+
+            scheme: {
+                string: DataTypes.string,
+                shortBuffer: DataTypes.shortBuffer,
+                buffer: DataTypes.buffer
+            },
+
+            buffer: new Buffer([
                 0x00, 0x18, // string length (uint16 BE)
                 0x53, 0x6f, 0x6d, 0x65, 0x20, 0x74, 0x65, 0x78, 0x74, 0x20, 0x2b, 0x20, 0xd1, 0x8e, 0xd0, 0xbd, 0xd0, 0xb8, 0xd0, 0xba, 0xd0, 0xbe, 0xd0, 0xb4, // string
                 0x00, 0x03, // short buffer length (uint16 BE)
@@ -139,11 +150,11 @@ describe("DataStruct", function(){
 
     };
 
-    describe("Buffer to Object convert", function(){
+    suite("Buffer to Object convert", function(){
         for(var suite in dataBundle) {
             var data = dataBundle[suite];
             (function(suite, data) {
-                it("should return buffer for '" + suite + "' suite", function () {
+                test("should return buffer for '" + suite + "' suite", function () {
                     var res = DataReader(data.buffer, data.scheme);
                     assert.deepEqual(res, data.object);
                 });
@@ -151,11 +162,11 @@ describe("DataStruct", function(){
         }
     });
 
-    describe("Object to Buffer convert", function(){
+    suite("Object to Buffer convert", function(){
         for(var suite in dataBundle) {
             var data = dataBundle[suite];
             (function(suite, data) {
-                it("should return buffer for '" + suite + "' suite", function () {
+                test("should return buffer for '" + suite + "' suite", function () {
                     var res = DataWriter(data.object, data.scheme);
                     assert.deepEqual(res, data.buffer);
                 });
