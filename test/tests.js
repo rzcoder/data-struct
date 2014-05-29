@@ -87,10 +87,7 @@ suite("DataStruct", function(){
             },
 
             scheme: {
-                values: {
-                    type: DataTypes.list,
-                    scheme: DataTypes.string
-                }
+                values: [DataTypes.string]
             },
 
             buffer: new Buffer([
@@ -122,17 +119,11 @@ suite("DataStruct", function(){
             },
 
             scheme: {
-                friends: {
-                    type: DataTypes.list,
-                    scheme: {
-                        name: DataTypes.string,
-                        age: DataTypes.uint32
-                    }
-                },
-                numbers: {
-                    type: DataTypes.list,
-                    scheme: DataTypes.uint8
-                }
+                friends: [{
+                    name: DataTypes.string,
+                    age: DataTypes.uint32
+                }],
+                numbers:[DataTypes.uint8]
             },
 
             buffer: new Buffer([
@@ -152,63 +143,38 @@ suite("DataStruct", function(){
 
     var dataBundleExtend = {
         nested: {
-            object: {
-                nested: {
-                    nested2: {
-                        nested3: {
-                            nested4: {
-                                nested5: 42
-                            }
-                        }
-                    }
-                }
-            },
 
-            scheme: {
-                nested: {
-                    type: DataTypes.struct,
-                    scheme: {
-                        nested2: {
-                            type: DataTypes.struct,
-                            scheme: {
-                                nested3: {
-                                    type: DataTypes.struct,
-                                    scheme: {
-                                        nested4: {
-                                            type: DataTypes.struct,
-                                            scheme: {
-                                                nested5: {
-                                                    type: DataTypes.struct,
-                                                    scheme: DataTypes.uint8
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
+            object: { nested: { nested2: { nested3: { nested4: { nested5: 42 } } } } },
+
+            scheme: { nested: { nested2: { nested3: { nested4: { nested5: DataTypes.uint8 } } } } }
+
         },
 
         'list of list': {
+            object: [
+                [90,10,101],
+                [20,30,400],
+                [100,110,1]
+            ],
+
+            scheme: [[DataTypes.int16]]
+
+        },
+
+        'list of list of list of list of object': {
             object: {
                 list: [
-                    [90,10,101],
-                    [20,30,400],
-                    [100,110,1]
+                    [[
+                        [{i: 1},{i: 2},{i: 3}],[{i: 1}]
+                    ],
+                    [
+                        [{i: 1}]
+                    ]]
                 ]
             },
 
             scheme: {
-               list: {
-                    type: DataTypes.list,
-                    scheme: {
-                        type: DataTypes.list,
-                        scheme: DataTypes.int16
-                    }
-                }
+                list: [[[[{i: DataTypes.int16}]]]]
             }
         }
 

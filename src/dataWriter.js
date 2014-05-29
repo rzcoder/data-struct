@@ -97,11 +97,7 @@ typesTable[DataTypes.buffer] = function (value) {
     return res;
 };
 
-typesTable[DataTypes.struct] = function (value, scheme) {
-    return structureWriter(value, scheme);
-};
-
-typesTable[DataTypes.list] = function (value, scheme) {
+function list (value, scheme) {
     if (!Array.isArray(value)) {
         throw Error('Value is not array.');
     }
@@ -117,23 +113,24 @@ typesTable[DataTypes.list] = function (value, scheme) {
     }
 
     return Buffer.concat(res);
-};
+}
 
 var structureWriter = function (object, scheme) {
     var res = [];
+
     if(typeof scheme  === 'number') {
         res.push(typesTable[scheme](object));
+    } else if(Array.isArray(scheme)) {
+        res.push(list(object, scheme[0]));
     } else {
-        if(Array.isArray(scheme)) {
-            console.log('bingo')
-        } else {
-            for (var el in scheme) {
-                var s = scheme[el];
-                if (typeof s === 'number') {
-                    res.push(typesTable[s](object[el]));
-                } else {
-                    res.push(typesTable[s.type](object[el], s.scheme));
-                }
+        for (var el in scheme) {
+            var s = scheme[el];
+            if (typeof s === 'number') {
+                res.push(typesTable[s](object[el]));
+            } else if (Array.isArray(s)) {
+                res.push(list(object[el], s[0]));
+            } else {
+                res.push(structureWriter(object[el], s));
             }
         }
     }

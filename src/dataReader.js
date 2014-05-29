@@ -83,11 +83,7 @@ typesTable[DataTypes.buffer] = function (pointer, buffer) {
     return res;
 };
 
-typesTable[DataTypes.struct] = function (pointer, buffer, scheme) {
-    return structureReader(pointer, buffer, scheme);
-};
-
-typesTable[DataTypes.list] = function (pointer, buffer, scheme) {
+function list (pointer, buffer, scheme) {
     var length = buffer.readUInt16BE(pointer.offset);
     pointer.offset += 2;
 
@@ -96,10 +92,10 @@ typesTable[DataTypes.list] = function (pointer, buffer, scheme) {
         res.push(structureReader(pointer, buffer, scheme));
     }
     return res;
-};
+}
 
 var structureReader = function (pointer, buffer, scheme) {
-    var res;
+    var res = {};
 
     if (arguments.length === 2) {
         scheme = buffer;
@@ -111,17 +107,21 @@ var structureReader = function (pointer, buffer, scheme) {
 
     if(typeof scheme  === 'number') {
         res = typesTable[scheme](pointer, buffer);
+    } else if (Array.isArray(scheme)) {
+        res = list(pointer, buffer, scheme[0]);
     } else {
-        res = {};
         for (var el in scheme) {
             var s = scheme[el];
             if (typeof s === 'number') {
                 res[el] = typesTable[s](pointer, buffer);
+            }  else if (Array.isArray(s)) {
+                res[el] = list(pointer, buffer, s[0]);
             } else {
-                res[el] = typesTable[s.type](pointer, buffer, s.scheme);
+                res[el] = structureReader(pointer, buffer, s);
             }
         }
     }
+
     return res;
 };
 

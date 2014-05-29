@@ -11,8 +11,5 @@ module.exports = {
 
     string: 0x200,
     shortBuffer: 0x210,
-    buffer: 0x211,
-
-    struct: 0x500,
-    list: 0x501
+    buffer: 0x211
 };
