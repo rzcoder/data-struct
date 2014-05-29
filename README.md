@@ -1,6 +1,6 @@
 # Data structure
 
-Convert between JS object and Node.js buffer with with rigidly predetermined scheme.
+Convert between JS object and Node.js buffer with rigidly predetermined scheme.
 
 ## Installing
 
