@@ -9,7 +9,28 @@ Convert between JS object and Node.js buffer with rigidly predetermined scheme.
 ```
 
 
-## Example & usage
+## Usage
+
+`require("data-struct")` exports just 3 namespaces:
+
+  * `DataTypes` – dictonary of supported types:
+      * **boolean** – 1 byte
+      * **int8** – 1 byte
+      * **uint8** – 1 byte
+      * **int16** – 2 bytes
+      * **uint16** – 2 bytes
+      * **int32** – 4 bytes
+      * **uint32** – 4 bytes
+      * **float** – 4 bytes
+      * **double** – 8 bytes
+      * **string** – 2 bytes header + string bytes length (max length: 65535 bytes, **not string length!**)
+      * **shortBuffer**  – 2 bytes header  + buffer length (max length: 65535 bytes)
+      * **buffer** – 4 bytes header + buffer length (max length 4294967295 bytes)
+  * `DataReader(buffer, scheme)` – buffer -> object function.
+  * `DataWriter(object, scheme)` – object -> buffer function.
+
+## Example
+
 
 ```javascript
 
@@ -75,19 +96,3 @@ var mapScheme = [[DataTypes.uint8]];
 var mapBuf = DataWriter(map, mapScheme);
 var mapClone = DataReader(mapBuf, mapScheme);
 ```
-
-
-## Data types
-
-  * **boolean** - 1 byte
-  * **int8** - 1 byte
-  * **uint8** - 1 byte
-  * **int16** - 2 bytes
-  * **uint16** - 2 bytes
-  * **int32** - 4 bytes
-  * **uint32** - 4 bytes
-  * **float** - 4 bytes
-  * **double** - 8 bytes
-  * **string** - 2 bytes header + string bytes length (max length: 65535 bytes, **not string length!**)
-  * **shortBuffer**  - 2 bytes header  + buffer length (max length: 65535 bytes)
-  * **buffer**  - 4 bytes header + buffer length (max length 4294967295 bytes)

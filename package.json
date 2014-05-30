@@ -14,6 +14,7 @@
     "node",
     "buffer",
     "object",
+    "serialization",
     "convert"
   ],
   "author": "rzcoder",
