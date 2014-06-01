@@ -96,3 +96,7 @@ var mapScheme = [[DataTypes.uint8]];
 var mapBuf = DataWriter(map, mapScheme);
 var mapClone = DataReader(mapBuf, mapScheme);
 ```
+
+## License
+
+MIT
