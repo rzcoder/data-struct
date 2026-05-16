@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+
+- Decoded structs are now created with a `null` prototype, neutralising prototype-pollution risk if a schema is built from untrusted input that contains a `__proto__` key.
+- String decoder now uses `TextDecoder` in `fatal: true` mode and throws `SCHEMA_MISMATCH` on malformed UTF-8 (previously such bytes were silently replaced with `U+FFFD`).
+- `struct.encode` now asserts that `write()` emits exactly as many bytes as `measure()` reported. Defends against codec bugs leaking uninitialised memory from `Buffer.allocUnsafe`.
+- CI now runs `npm audit --audit-level=high --omit=dev` and fails on high/critical advisories in production dependencies.
+
 ## [0.1.0] - 2026-05-16
 
 ### Added

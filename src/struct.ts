@@ -125,7 +125,9 @@ function structCodec(
       return offset;
     },
     read(view, bytes, offset, path) {
-      const out: Record<string, unknown> = {};
+      // Null-prototype output neutralizes a __proto__ key in the schema:
+      // out['__proto__'] = obj would otherwise mutate the prototype chain.
+      const out = Object.create(null) as Record<string, unknown>;
       for (const [key, codec] of fields) {
         const r = codec.impl.read(view, bytes, offset, `${path}.${key}`);
         out[key] = r.value;
@@ -155,7 +157,16 @@ export function struct<S extends Schema>(schema: S): Struct<S> {
       const out = Buffer.allocUnsafe(size);
       const view = new DataView(out.buffer, out.byteOffset, out.byteLength);
       plan.cursor = 0;
-      codec.impl.write(view, out, 0, value, plan, '$');
+      const written = codec.impl.write(view, out, 0, value, plan, '$');
+      // Defense in depth: allocUnsafe returned uninitialized memory; if a codec's
+      // measure() over-counts versus what write() actually emits, we would leak
+      // pool bytes. This assertion makes that class of bug visible instead of silent.
+      if (written !== size) {
+        throw new DataStructError(
+          'INVALID_SCHEMA',
+          `internal size mismatch: measured ${size}, wrote ${written}`,
+        );
+      }
       return out;
     },
     decode(input): Infer<S> {

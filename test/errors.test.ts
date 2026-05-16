@@ -113,4 +113,25 @@ describe('errors', () => {
   it('throws VALUE_OUT_OF_RANGE for non-number floats', () => {
     expect(() => encode('nope' as never, t.f64)).toThrow(/f64/);
   });
+
+  it('throws SCHEMA_MISMATCH on invalid UTF-8 in string field', () => {
+    // 0x00 0x02 = uint16 length 2, then 0xc3 0x28 = invalid UTF-8 sequence
+    const bad = new Uint8Array([0x00, 0x02, 0xc3, 0x28]);
+    try {
+      decode(bad, t.string);
+      throw new Error('expected throw');
+    } catch (err) {
+      const e = err as DataStructError;
+      expect(e.code).toBe('SCHEMA_MISMATCH');
+      expect(e.message).toMatch(/UTF-8/);
+    }
+  });
+
+  it('decoded structs have null prototype (proto-pollution defence)', () => {
+    const { decoded } = (() => {
+      const buf = encode({ x: 1 }, { x: t.u8 });
+      return { decoded: decode(buf, { x: t.u8 }) };
+    })();
+    expect(Object.getPrototypeOf(decoded)).toBeNull();
+  });
 });

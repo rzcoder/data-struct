@@ -2,7 +2,7 @@ import { DataStructError } from './errors.js';
 import type { Codec, CodecImpl } from './types.js';
 
 const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder('utf-8');
+const textDecoder = new TextDecoder('utf-8', { fatal: true });
 
 const U8_MAX = 0xff;
 const U16_MAX = 0xffff;
@@ -143,7 +143,16 @@ function makeString(littleEndian: boolean, tag: number): Codec<string> {
       const length = view.getUint16(offset, littleEndian);
       offset += 2;
       ensureCapacity(view, offset, length, path);
-      const value = textDecoder.decode(bytes.subarray(offset, offset + length));
+      let value: string;
+      try {
+        value = textDecoder.decode(bytes.subarray(offset, offset + length));
+      } catch (cause) {
+        throw new DataStructError('SCHEMA_MISMATCH', 'invalid UTF-8 in string field', {
+          path,
+          offset,
+          cause,
+        });
+      }
       return { value, offset: offset + length };
     },
   };

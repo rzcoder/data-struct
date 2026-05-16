@@ -26,6 +26,19 @@ jobs:
       - run: npm run format:check
       - run: npm run lint
 
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # Fail only on high/critical advisories in production deps.
+      # Dev-only moderate advisories (vitest/vite/esbuild dev-server chain) are tolerated.
+      - run: npm audit --audit-level=high --omit=dev
+
   typecheck:
     runs-on: ubuntu-latest
     steps:
