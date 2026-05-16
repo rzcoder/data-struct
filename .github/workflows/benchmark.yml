@@ -1,0 +1,40 @@
+name: Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Git ref to benchmark'
+        required: false
+        default: 'main'
+
+permissions:
+  contents: read
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npm run bench | tee bench-results.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bench-results-${{ inputs.ref }}
+          path: bench-results.txt
+          retention-days: 30
+      - name: Append to job summary
+        run: |
+          {
+            echo '### Benchmark results (`${{ inputs.ref }}`)'
+            echo '```'
+            cat bench-results.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
