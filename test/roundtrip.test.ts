@@ -102,4 +102,32 @@ describe('roundtrip', () => {
       active: boolean;
     }>();
   });
+
+  it('Infer<S> works for top-level array schemas (no object wrapper)', () => {
+    // Plain `[t.u8]` literal — must infer as number[]
+    expectTypeOf<Infer<typeof t.u8 extends infer _ ? [typeof t.u8] : never>>().toEqualTypeOf<
+      number[]
+    >();
+
+    // `as const` form (readonly tuple)
+    const ro = [t.string] as const;
+    expectTypeOf<Infer<typeof ro>>().toEqualTypeOf<string[]>();
+
+    // Nested arrays
+    const matrix = [[t.i16]];
+    expectTypeOf<Infer<typeof matrix>>().toEqualTypeOf<number[][]>();
+
+    // Array of structs
+    const list = [{ id: t.u32, name: t.string }];
+    expectTypeOf<Infer<typeof list>>().toEqualTypeOf<{ id: number; name: string }[]>();
+
+    // struct() factory accepting an array schema directly
+    const codec = struct([t.u8]);
+    expectTypeOf(codec.encode).parameter(0).toEqualTypeOf<number[]>();
+    expectTypeOf(codec.decode).returns.toEqualTypeOf<number[]>();
+
+    // Runtime roundtrip on the same array codec
+    const buf = codec.encode([1, 2, 3, 255]);
+    expect(codec.decode(buf)).toEqual([1, 2, 3, 255]);
+  });
 });
