@@ -95,18 +95,72 @@ function fixed<T>(
 
 const boolImpl: CodecImpl<boolean> = {
   measure: () => 1,
-  write(view, _bytes, offset, value, _plan, path) {
+  write(view, bytes, offset, value, _plan, path) {
     if (typeof value !== 'boolean') {
       throw new DataStructError('SCHEMA_MISMATCH', `bool requires boolean, got ${typeof value}`, {
         path,
       });
     }
-    view.setUint8(offset, value ? 1 : 0);
+    bytes[offset] = value ? 1 : 0;
     return offset + 1;
   },
-  read(view, _bytes, offset, path) {
-    ensureCapacity(view, offset, 1, path);
-    return { value: view.getInt8(offset) !== 0, offset: offset + 1 };
+  read(view, bytes, offset, path) {
+    if (offset >= view.byteLength) {
+      throw new DataStructError('BUFFER_UNDERFLOW', `need 1 byte at offset ${offset}`, {
+        path,
+        offset,
+      });
+    }
+    return { value: bytes[offset] !== 0, offset: offset + 1 };
+  },
+};
+
+const u8Impl: CodecImpl<number> = {
+  measure: () => 1,
+  write(view, bytes, offset, value, _plan, path) {
+    if (!Number.isInteger(value) || value < 0 || value > 0xff) {
+      throw new DataStructError(
+        'VALUE_OUT_OF_RANGE',
+        `u8 requires integer in [0, 255], got ${value}`,
+        { path },
+      );
+    }
+    bytes[offset] = value;
+    return offset + 1;
+  },
+  read(view, bytes, offset, path) {
+    if (offset >= view.byteLength) {
+      throw new DataStructError('BUFFER_UNDERFLOW', `need 1 byte at offset ${offset}`, {
+        path,
+        offset,
+      });
+    }
+    return { value: bytes[offset] as number, offset: offset + 1 };
+  },
+};
+
+const i8Impl: CodecImpl<number> = {
+  measure: () => 1,
+  write(view, bytes, offset, value, _plan, path) {
+    if (!Number.isInteger(value) || value < -0x80 || value > 0x7f) {
+      throw new DataStructError(
+        'VALUE_OUT_OF_RANGE',
+        `i8 requires integer in [-128, 127], got ${value}`,
+        { path },
+      );
+    }
+    bytes[offset] = value & 0xff;
+    return offset + 1;
+  },
+  read(view, bytes, offset, path) {
+    if (offset >= view.byteLength) {
+      throw new DataStructError('BUFFER_UNDERFLOW', `need 1 byte at offset ${offset}`, {
+        path,
+        offset,
+      });
+    }
+    const u = bytes[offset] as number;
+    return { value: u > 127 ? u - 256 : u, offset: offset + 1 };
   },
 };
 
@@ -306,8 +360,8 @@ const LE = true;
 
 const beCodecs = {
   bool: { tag: 0x000, impl: boolImpl } as Codec<boolean>,
-  i8: intCodec(0x010, 1, true, I8_MIN, I8_MAX, 'i8', BE),
-  u8: intCodec(0x011, 1, false, 0, U8_MAX, 'u8', BE),
+  i8: { tag: 0x010, impl: i8Impl } as Codec<number>,
+  u8: { tag: 0x011, impl: u8Impl } as Codec<number>,
   i16: intCodec(0x020, 2, true, I16_MIN, I16_MAX, 'i16', BE),
   u16: intCodec(0x021, 2, false, 0, U16_MAX, 'u16', BE),
   i32: intCodec(0x030, 4, true, I32_MIN, I32_MAX, 'i32', BE),
