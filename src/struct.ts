@@ -39,6 +39,7 @@ function compile(schema: Schema, path: string): AnyCodec {
 }
 
 function arrayCodec(element: AnyCodec): Codec<unknown[]> {
+  const elementSize = element.size;
   const impl: CodecImpl<unknown[]> = {
     measure(value, plan, path) {
       if (!Array.isArray(value)) {
@@ -53,6 +54,8 @@ function arrayCodec(element: AnyCodec): Codec<unknown[]> {
           { path },
         );
       }
+      // Fast path: every element is fixed-size, total = 2 + n * size.
+      if (elementSize !== null) return 2 + value.length * elementSize;
       let size = 2;
       for (let i = 0; i < value.length; i++) {
         size += element.impl.measure(value[i], plan, `${path}[${i}]`);
@@ -86,7 +89,7 @@ function arrayCodec(element: AnyCodec): Codec<unknown[]> {
       return { value: out, offset };
     },
   };
-  return { tag: 0x100, impl };
+  return { tag: 0x100, size: null, impl };
 }
 
 function structCodec(
@@ -104,6 +107,18 @@ function structCodec(
     return [key, compile(child, `${basePath}.${key}`)];
   });
 
+  // If every field is fixed-size, the struct itself is fixed-size:
+  // measure becomes a closure-captured constant and skips the field walk.
+  let fixedTotal: number | null = 0;
+  for (const [, codec] of fields) {
+    if (codec.size === null) {
+      fixedTotal = null;
+      break;
+    }
+    fixedTotal += codec.size;
+  }
+  const structSize = fixedTotal;
+
   const impl: CodecImpl<Record<string, unknown>> = {
     measure(value, plan, path) {
       if (typeof value !== 'object' || value === null || Array.isArray(value)) {
@@ -111,6 +126,7 @@ function structCodec(
           path,
         });
       }
+      if (structSize !== null) return structSize;
       const obj = value as Record<string, unknown>;
       let size = 0;
       for (const [key, codec] of fields) {
@@ -136,7 +152,7 @@ function structCodec(
       return { value: out, offset };
     },
   };
-  return { tag: 0x300, impl };
+  return { tag: 0x300, size: structSize, impl };
 }
 
 export interface Struct<S extends Schema> {

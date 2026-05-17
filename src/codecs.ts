@@ -90,7 +90,7 @@ function fixed<T>(
       return { value: read(view, offset), offset: offset + size };
     },
   };
-  return { tag, impl };
+  return { tag, size, impl };
 }
 
 const boolImpl: CodecImpl<boolean> = {
@@ -156,7 +156,7 @@ function makeString(littleEndian: boolean, tag: number): Codec<string> {
       return { value, offset: offset + length };
     },
   };
-  return { tag, impl };
+  return { tag, size: null, impl };
 }
 
 function makeShortBytes(littleEndian: boolean, tag: number): Codec<Uint8Array> {
@@ -188,7 +188,7 @@ function makeShortBytes(littleEndian: boolean, tag: number): Codec<Uint8Array> {
       return { value, offset: offset + length };
     },
   };
-  return { tag, impl };
+  return { tag, size: null, impl };
 }
 
 function makeBytes(littleEndian: boolean, tag: number): Codec<Uint8Array> {
@@ -220,7 +220,7 @@ function makeBytes(littleEndian: boolean, tag: number): Codec<Uint8Array> {
       return { value, offset: offset + length };
     },
   };
-  return { tag, impl };
+  return { tag, size: null, impl };
 }
 
 function intCodec(
@@ -305,7 +305,7 @@ const BE = false;
 const LE = true;
 
 const beCodecs = {
-  bool: { tag: 0x000, impl: boolImpl } as Codec<boolean>,
+  bool: { tag: 0x000, size: 1, impl: boolImpl } as Codec<boolean>,
   i8: intCodec(0x010, 1, true, I8_MIN, I8_MAX, 'i8', BE),
   u8: intCodec(0x011, 1, false, 0, U8_MAX, 'u8', BE),
   i16: intCodec(0x020, 2, true, I16_MIN, I16_MAX, 'i16', BE),

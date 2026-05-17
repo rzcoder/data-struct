@@ -25,6 +25,8 @@ export interface CodecImpl<T> {
 
 export interface Codec<T> {
   readonly tag: number;
+  /** Wire size in bytes if fixed, or null for variable-length codecs. */
+  readonly size: number | null;
   readonly impl: CodecImpl<T>;
   readonly [phantom]?: T;
 }
