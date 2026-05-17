@@ -73,7 +73,7 @@ jobs:
       - run: npm run test:coverage
       - name: Upload coverage
         if: matrix.os == 'ubuntu-latest' && matrix.node == 22
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
           files: ./coverage/lcov.info
           fail_ci_if_error: false
@@ -94,7 +94,7 @@ jobs:
           test -f dist/index.cjs
           test -f dist/index.d.ts
           test -f dist/index.d.cts
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/
