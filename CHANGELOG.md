@@ -5,28 +5,7 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
-
-### Performance
-
-- Field-iteration path strings (`${path}.${key}`, `${path}[${i}]`) are no longer allocated on the happy path. `struct` / `array` codecs now wrap each child call in `try { ... } catch (e) { rethrowWithPrefix(e, segment) }` and build the error path only when something throws. Measured on Node 22:
-  - `nested` encode (compiled): -33%
-  - `list of list` encode (compiled): -59%
-  - `list of list` decode (compiled): -45%
-  - `hero` encode / decode (compiled): -17% each
-
-### Changed
-
-- Build: `tsup` now emits minified output. `dist/index.mjs` shrinks from ~15 KB to ~7.5 KB (~-50%); behaviour is unchanged.
-
-### Security
-
-- Decoded structs are now created with a `null` prototype, neutralising prototype-pollution risk if a schema is built from untrusted input that contains a `__proto__` key.
-- String decoder now uses `TextDecoder` in `fatal: true` mode and throws `SCHEMA_MISMATCH` on malformed UTF-8 (previously such bytes were silently replaced with `U+FFFD`).
-- `struct.encode` now asserts that `write()` emits exactly as many bytes as `measure()` reported. Defends against codec bugs leaking uninitialised memory from `Buffer.allocUnsafe`.
-- CI now runs `npm audit --audit-level=high --omit=dev` and fails on high/critical advisories in production dependencies.
-
-## [0.1.0] - 2026-05-16
+## [0.1.0] - 2026-05-17
 
 ### Added
 - Full TypeScript rewrite.
@@ -48,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Encoder now allocates the output `Buffer` exactly once via a two-pass measure/write strategy (no `Buffer.concat`).
 - Decoded `shortBytes` / `bytes` are returned as independent copies of the source memory rather than aliased views.
 - Replaced deprecated `new Buffer(...)` calls with `Buffer.allocUnsafe` (for output) and `TextEncoder`/`TextDecoder` for string codecs.
+- Build: `tsup` now emits minified output. `dist/index.mjs` shrinks from ~15 KB to ~7.5 KB (~-50%); behaviour is unchanged.
 
 ### Removed
 - Legacy exports `DataTypes`, `DataReader`, `DataWriter` (clean break — see README migration table).
@@ -55,3 +35,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Wire format
 - **Byte-identical** with `0.0.x` for the corresponding new codecs. The previous test suite's golden buffers are preserved as goldens in `test/wire-format.test.ts`.
+
+### Performance
+
+- Field-iteration path strings (`${path}.${key}`, `${path}[${i}]`) are no longer allocated on the happy path. `struct` / `array` codecs now wrap each child call in `try { ... } catch (e) { rethrowWithPrefix(e, segment) }` and build the error path only when something throws. Measured on Node 22:
+  - `nested` encode (compiled): -33%
+  - `list of list` encode (compiled): -59%
+  - `list of list` decode (compiled): -45%
+  - `hero` encode / decode (compiled): -17% each
+
+### Security
+
+- Decoded structs are now created with a `null` prototype, neutralising prototype-pollution risk if a schema is built from untrusted input that contains a `__proto__` key.
+- String decoder now uses `TextDecoder` in `fatal: true` mode and throws `SCHEMA_MISMATCH` on malformed UTF-8 (previously such bytes were silently replaced with `U+FFFD`).
+- `struct.encode` now asserts that `write()` emits exactly as many bytes as `measure()` reported. Defends against codec bugs leaking uninitialised memory from `Buffer.allocUnsafe`.
+- CI now runs `npm audit --audit-level=high --omit=dev` and fails on high/critical advisories in production dependencies.
