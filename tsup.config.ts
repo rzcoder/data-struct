@@ -10,6 +10,6 @@ export default defineConfig({
   treeshake: true,
   target: 'node20.9',
   splitting: false,
-  minify: false,
+  minify: true,
   shims: false,
 });
