@@ -223,40 +223,61 @@ function makeBytes(littleEndian: boolean, tag: number): Codec<Uint8Array> {
   return { tag, impl };
 }
 
-function intCodec(
-  tag: number,
-  size: number,
-  signed: boolean,
-  min: number,
-  max: number,
-  name: string,
-  littleEndian: boolean,
-): Codec<number> {
-  const setters: Record<string, (view: DataView, o: number, v: number, le: boolean) => void> = {
-    'i:1': (v, o, x) => v.setInt8(o, x),
-    'u:1': (v, o, x) => v.setUint8(o, x),
-    'i:2': (v, o, x, le) => v.setInt16(o, x, le),
-    'u:2': (v, o, x, le) => v.setUint16(o, x, le),
-    'i:4': (v, o, x, le) => v.setInt32(o, x, le),
-    'u:4': (v, o, x, le) => v.setUint32(o, x, le),
-  };
-  const getters: Record<string, (view: DataView, o: number, le: boolean) => number> = {
-    'i:1': (v, o) => v.getInt8(o),
-    'u:1': (v, o) => v.getUint8(o),
-    'i:2': (v, o, le) => v.getInt16(o, le),
-    'u:2': (v, o, le) => v.getUint16(o, le),
-    'i:4': (v, o, le) => v.getInt32(o, le),
-    'u:4': (v, o, le) => v.getUint32(o, le),
-  };
-  const key = `${signed ? 'i' : 'u'}:${size}`;
-  const setter = setters[key] as (view: DataView, o: number, v: number, le: boolean) => void;
-  const getter = getters[key] as (view: DataView, o: number, le: boolean) => number;
+// Six concrete int factories. Avoiding the map lookup keeps the JIT happy:
+// each codec's write/read closes over exactly one DataView method call,
+// which V8 can inline.
+function i8Codec(tag: number, name: string): Codec<number> {
   return fixed<number>(
     tag,
-    size,
-    (view, offset, value) => setter(view, offset, value, littleEndian),
-    (view, offset) => getter(view, offset, littleEndian),
-    (value, path) => ensureInt(value, min, max, name, path),
+    1,
+    (view, offset, value) => view.setInt8(offset, value),
+    (view, offset) => view.getInt8(offset),
+    (value, path) => ensureInt(value, I8_MIN, I8_MAX, name, path),
+  );
+}
+function u8Codec(tag: number, name: string): Codec<number> {
+  return fixed<number>(
+    tag,
+    1,
+    (view, offset, value) => view.setUint8(offset, value),
+    (view, offset) => view.getUint8(offset),
+    (value, path) => ensureInt(value, 0, U8_MAX, name, path),
+  );
+}
+function i16Codec(tag: number, name: string, le: boolean): Codec<number> {
+  return fixed<number>(
+    tag,
+    2,
+    (view, offset, value) => view.setInt16(offset, value, le),
+    (view, offset) => view.getInt16(offset, le),
+    (value, path) => ensureInt(value, I16_MIN, I16_MAX, name, path),
+  );
+}
+function u16Codec(tag: number, name: string, le: boolean): Codec<number> {
+  return fixed<number>(
+    tag,
+    2,
+    (view, offset, value) => view.setUint16(offset, value, le),
+    (view, offset) => view.getUint16(offset, le),
+    (value, path) => ensureInt(value, 0, U16_MAX, name, path),
+  );
+}
+function i32Codec(tag: number, name: string, le: boolean): Codec<number> {
+  return fixed<number>(
+    tag,
+    4,
+    (view, offset, value) => view.setInt32(offset, value, le),
+    (view, offset) => view.getInt32(offset, le),
+    (value, path) => ensureInt(value, I32_MIN, I32_MAX, name, path),
+  );
+}
+function u32Codec(tag: number, name: string, le: boolean): Codec<number> {
+  return fixed<number>(
+    tag,
+    4,
+    (view, offset, value) => view.setUint32(offset, value, le),
+    (view, offset) => view.getUint32(offset, le),
+    (value, path) => ensureInt(value, 0, U32_MAX, name, path),
   );
 }
 
@@ -306,12 +327,12 @@ const LE = true;
 
 const beCodecs = {
   bool: { tag: 0x000, impl: boolImpl } as Codec<boolean>,
-  i8: intCodec(0x010, 1, true, I8_MIN, I8_MAX, 'i8', BE),
-  u8: intCodec(0x011, 1, false, 0, U8_MAX, 'u8', BE),
-  i16: intCodec(0x020, 2, true, I16_MIN, I16_MAX, 'i16', BE),
-  u16: intCodec(0x021, 2, false, 0, U16_MAX, 'u16', BE),
-  i32: intCodec(0x030, 4, true, I32_MIN, I32_MAX, 'i32', BE),
-  u32: intCodec(0x031, 4, false, 0, U32_MAX, 'u32', BE),
+  i8: i8Codec(0x010, 'i8'),
+  u8: u8Codec(0x011, 'u8'),
+  i16: i16Codec(0x020, 'i16', BE),
+  u16: u16Codec(0x021, 'u16', BE),
+  i32: i32Codec(0x030, 'i32', BE),
+  u32: u32Codec(0x031, 'u32', BE),
   f32: floatCodec(0x040, 4, 'f32', BE),
   f64: floatCodec(0x041, 8, 'f64', BE),
   i64: bigIntCodec(0x050, true, 'i64', BE),
@@ -322,10 +343,10 @@ const beCodecs = {
 };
 
 const leCodecs = {
-  i16: intCodec(0x1020, 2, true, I16_MIN, I16_MAX, 'le.i16', LE),
-  u16: intCodec(0x1021, 2, false, 0, U16_MAX, 'le.u16', LE),
-  i32: intCodec(0x1030, 4, true, I32_MIN, I32_MAX, 'le.i32', LE),
-  u32: intCodec(0x1031, 4, false, 0, U32_MAX, 'le.u32', LE),
+  i16: i16Codec(0x1020, 'le.i16', LE),
+  u16: u16Codec(0x1021, 'le.u16', LE),
+  i32: i32Codec(0x1030, 'le.i32', LE),
+  u32: u32Codec(0x1031, 'le.u32', LE),
   f32: floatCodec(0x1040, 4, 'le.f32', LE),
   f64: floatCodec(0x1041, 8, 'le.f64', LE),
   i64: bigIntCodec(0x1050, true, 'le.i64', LE),
