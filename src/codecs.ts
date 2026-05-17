@@ -17,56 +17,49 @@ const I64_MIN = -(1n << 63n);
 const I64_MAX = (1n << 63n) - 1n;
 const U64_MAX = (1n << 64n) - 1n;
 
-function ensureCapacity(view: DataView, offset: number, need: number, path: string): void {
+// Leaves throw without path context; parent codecs (struct/array) prefix
+// the segment via prefixPath() in struct.ts. This keeps the happy path
+// allocation-free for the field-iteration string concatenations.
+
+function ensureCapacity(view: DataView, offset: number, need: number): void {
   if (offset + need > view.byteLength) {
     throw new DataStructError(
       'BUFFER_UNDERFLOW',
       `need ${need} byte(s) at offset ${offset}, but buffer has ${view.byteLength}`,
-      { path, offset },
+      { offset },
     );
   }
 }
 
-function ensureInt(value: number, min: number, max: number, type: string, path: string): void {
+function ensureInt(value: number, min: number, max: number, type: string): void {
   if (typeof value !== 'number' || !Number.isInteger(value) || value < min || value > max) {
     throw new DataStructError(
       'VALUE_OUT_OF_RANGE',
       `${type} requires integer in [${min}, ${max}], got ${value}`,
-      {
-        path,
-      },
     );
   }
 }
 
-function ensureFiniteNumber(value: number, type: string, path: string): void {
+function ensureFiniteNumber(value: number, type: string): void {
   if (typeof value !== 'number') {
-    throw new DataStructError(
-      'VALUE_OUT_OF_RANGE',
-      `${type} requires number, got ${typeof value}`,
-      { path },
-    );
+    throw new DataStructError('VALUE_OUT_OF_RANGE', `${type} requires number, got ${typeof value}`);
   }
 }
 
-function ensureBigInt(value: bigint, min: bigint, max: bigint, type: string, path: string): void {
+function ensureBigInt(value: bigint, min: bigint, max: bigint, type: string): void {
   if (typeof value !== 'bigint' || value < min || value > max) {
     throw new DataStructError(
       'VALUE_OUT_OF_RANGE',
       `${type} requires bigint in [${min}, ${max}], got ${value}`,
-      {
-        path,
-      },
     );
   }
 }
 
-function ensureUint8Array(value: unknown, type: string, path: string): asserts value is Uint8Array {
+function ensureUint8Array(value: unknown, type: string): asserts value is Uint8Array {
   if (!(value instanceof Uint8Array)) {
     throw new DataStructError(
       'SCHEMA_MISMATCH',
       `${type} requires Uint8Array, got ${typeof value}`,
-      { path },
     );
   }
 }
@@ -76,17 +69,17 @@ function fixed<T>(
   size: number,
   write: (view: DataView, offset: number, value: T) => void,
   read: (view: DataView, offset: number) => T,
-  validate: (value: T, path: string) => void,
+  validate: (value: T) => void,
 ): Codec<T> {
   const impl: CodecImpl<T> = {
     measure: () => size,
-    write(view, _bytes, offset, value, _plan, path) {
-      validate(value, path);
+    write(view, _bytes, offset, value) {
+      validate(value);
       write(view, offset, value);
       return offset + size;
     },
-    read(view, _bytes, offset, path) {
-      ensureCapacity(view, offset, size, path);
+    read(view, _bytes, offset) {
+      ensureCapacity(view, offset, size);
       return { value: read(view, offset), offset: offset + size };
     },
   };
@@ -95,37 +88,30 @@ function fixed<T>(
 
 const boolImpl: CodecImpl<boolean> = {
   measure: () => 1,
-  write(view, _bytes, offset, value, _plan, path) {
+  write(view, _bytes, offset, value) {
     if (typeof value !== 'boolean') {
-      throw new DataStructError('SCHEMA_MISMATCH', `bool requires boolean, got ${typeof value}`, {
-        path,
-      });
+      throw new DataStructError('SCHEMA_MISMATCH', `bool requires boolean, got ${typeof value}`);
     }
     view.setUint8(offset, value ? 1 : 0);
     return offset + 1;
   },
-  read(view, _bytes, offset, path) {
-    ensureCapacity(view, offset, 1, path);
+  read(view, _bytes, offset) {
+    ensureCapacity(view, offset, 1);
     return { value: view.getInt8(offset) !== 0, offset: offset + 1 };
   },
 };
 
 function makeString(littleEndian: boolean, tag: number): Codec<string> {
   const impl: CodecImpl<string> = {
-    measure(value, plan, path) {
+    measure(value, plan) {
       if (typeof value !== 'string') {
-        throw new DataStructError(
-          'SCHEMA_MISMATCH',
-          `string requires string, got ${typeof value}`,
-          { path },
-        );
+        throw new DataStructError('SCHEMA_MISMATCH', `string requires string, got ${typeof value}`);
       }
       const encoded = textEncoder.encode(value);
       if (encoded.byteLength > U16_MAX) {
         throw new DataStructError(
           'STRING_TOO_LONG',
           `string UTF-8 byte length ${encoded.byteLength} exceeds 65535`,
-          { path },
         );
       }
       plan.strings.push(encoded);
@@ -138,17 +124,16 @@ function makeString(littleEndian: boolean, tag: number): Codec<string> {
       bytes.set(encoded, offset);
       return offset + encoded.byteLength;
     },
-    read(view, bytes, offset, path) {
-      ensureCapacity(view, offset, 2, path);
+    read(view, bytes, offset) {
+      ensureCapacity(view, offset, 2);
       const length = view.getUint16(offset, littleEndian);
       offset += 2;
-      ensureCapacity(view, offset, length, path);
+      ensureCapacity(view, offset, length);
       let value: string;
       try {
         value = textDecoder.decode(bytes.subarray(offset, offset + length));
       } catch (cause) {
         throw new DataStructError('SCHEMA_MISMATCH', 'invalid UTF-8 in string field', {
-          path,
           offset,
           cause,
         });
@@ -161,13 +146,12 @@ function makeString(littleEndian: boolean, tag: number): Codec<string> {
 
 function makeShortBytes(littleEndian: boolean, tag: number): Codec<Uint8Array> {
   const impl: CodecImpl<Uint8Array> = {
-    measure(value, _plan, path) {
-      ensureUint8Array(value, 'shortBytes', path);
+    measure(value) {
+      ensureUint8Array(value, 'shortBytes');
       if (value.byteLength > U16_MAX) {
         throw new DataStructError(
           'BYTES_TOO_LONG',
           `shortBytes length ${value.byteLength} exceeds 65535`,
-          { path },
         );
       }
       return 2 + value.byteLength;
@@ -178,11 +162,11 @@ function makeShortBytes(littleEndian: boolean, tag: number): Codec<Uint8Array> {
       bytes.set(value, offset);
       return offset + value.byteLength;
     },
-    read(view, bytes, offset, path) {
-      ensureCapacity(view, offset, 2, path);
+    read(view, bytes, offset) {
+      ensureCapacity(view, offset, 2);
       const length = view.getUint16(offset, littleEndian);
       offset += 2;
-      ensureCapacity(view, offset, length, path);
+      ensureCapacity(view, offset, length);
       const value = new Uint8Array(length);
       value.set(bytes.subarray(offset, offset + length));
       return { value, offset: offset + length };
@@ -193,13 +177,12 @@ function makeShortBytes(littleEndian: boolean, tag: number): Codec<Uint8Array> {
 
 function makeBytes(littleEndian: boolean, tag: number): Codec<Uint8Array> {
   const impl: CodecImpl<Uint8Array> = {
-    measure(value, _plan, path) {
-      ensureUint8Array(value, 'bytes', path);
+    measure(value) {
+      ensureUint8Array(value, 'bytes');
       if (value.byteLength > U32_MAX) {
         throw new DataStructError(
           'BYTES_TOO_LONG',
           `bytes length ${value.byteLength} exceeds 4294967295`,
-          { path },
         );
       }
       return 4 + value.byteLength;
@@ -210,11 +193,11 @@ function makeBytes(littleEndian: boolean, tag: number): Codec<Uint8Array> {
       bytes.set(value, offset);
       return offset + value.byteLength;
     },
-    read(view, bytes, offset, path) {
-      ensureCapacity(view, offset, 4, path);
+    read(view, bytes, offset) {
+      ensureCapacity(view, offset, 4);
       const length = view.getUint32(offset, littleEndian);
       offset += 4;
-      ensureCapacity(view, offset, length, path);
+      ensureCapacity(view, offset, length);
       const value = new Uint8Array(length);
       value.set(bytes.subarray(offset, offset + length));
       return { value, offset: offset + length };
@@ -256,7 +239,7 @@ function intCodec(
     size,
     (view, offset, value) => setter(view, offset, value, littleEndian),
     (view, offset) => getter(view, offset, littleEndian),
-    (value, path) => ensureInt(value, min, max, name, path),
+    (value) => ensureInt(value, min, max, name),
   );
 }
 
@@ -267,7 +250,7 @@ function floatCodec(tag: number, size: 4 | 8, name: string, littleEndian: boolea
       4,
       (view, offset, value) => view.setFloat32(offset, value, littleEndian),
       (view, offset) => view.getFloat32(offset, littleEndian),
-      (value, path) => ensureFiniteNumber(value, name, path),
+      (value) => ensureFiniteNumber(value, name),
     );
   }
   return fixed<number>(
@@ -275,7 +258,7 @@ function floatCodec(tag: number, size: 4 | 8, name: string, littleEndian: boolea
     8,
     (view, offset, value) => view.setFloat64(offset, value, littleEndian),
     (view, offset) => view.getFloat64(offset, littleEndian),
-    (value, path) => ensureFiniteNumber(value, name, path),
+    (value) => ensureFiniteNumber(value, name),
   );
 }
 
@@ -296,11 +279,10 @@ function bigIntCodec(
     },
     (view, offset) =>
       signed ? view.getBigInt64(offset, littleEndian) : view.getBigUint64(offset, littleEndian),
-    (value, path) => ensureBigInt(value, min, max, name, path),
+    (value) => ensureBigInt(value, min, max, name),
   );
 }
 
-// Wire tags preserve legacy numeric ids where applicable for debug/introspection.
 const BE = false;
 const LE = true;
 

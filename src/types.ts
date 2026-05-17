@@ -11,16 +11,9 @@ export interface ReadResult<T> {
 }
 
 export interface CodecImpl<T> {
-  measure(value: T, plan: EncodePlan, path: string): number;
-  write(
-    view: DataView,
-    bytes: Uint8Array,
-    offset: number,
-    value: T,
-    plan: EncodePlan,
-    path: string,
-  ): number;
-  read(view: DataView, bytes: Uint8Array, offset: number, path: string): ReadResult<T>;
+  measure(value: T, plan: EncodePlan): number;
+  write(view: DataView, bytes: Uint8Array, offset: number, value: T, plan: EncodePlan): number;
+  read(view: DataView, bytes: Uint8Array, offset: number): ReadResult<T>;
 }
 
 export interface Codec<T> {
