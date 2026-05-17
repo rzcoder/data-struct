@@ -19,5 +19,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src", "test", "benchmark", "*.config.ts"]
+  "include": ["src", "test", "benchmark", "examples", "*.config.ts"]
 }
